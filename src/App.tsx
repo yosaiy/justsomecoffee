@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Coffee, BarChart3, Menu, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook } from 'lucide-react';
+import { Coffee, BarChart3, Menu, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook, LogOut } from 'lucide-react';
+import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import MenuManagement from './components/MenuManagement';
 import OrderEntry from './components/OrderEntry';
@@ -11,6 +12,9 @@ import { MenuItem, Order, Material } from './types';
 import { getMenuItems, getMaterials, getOrders, subscribeToMenuItems, subscribeToOrders, subscribeToMaterials } from './lib/supabase';
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => 
+    localStorage.getItem('isAuthenticated') === 'true'
+  );
   const [activeTab, setActiveTab] = useState('dashboard');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -112,6 +116,16 @@ function App() {
     { id: 'webhook', name: 'Webhook', icon: Webhook }
   ];
 
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    setIsAuthenticated(false);
+  };
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <Login onLogin={setIsAuthenticated} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
@@ -135,7 +149,7 @@ function App() {
                 <p className="text-sm text-gray-500">Sistem Manajemen Bisnis</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <div className="flex items-center space-x-6 text-sm text-gray-600">
               <div className="flex items-center space-x-1">
                 <TrendingUp className="h-4 w-4" />
                 <span>Hari Ini: {formatIDR(orders.reduce((sum, order) => 
@@ -148,6 +162,13 @@ function App() {
                   new Date(order.date).toDateString() === new Date().toDateString()
                 ).length} Pesanan</span>
               </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-1 text-gray-600 hover:text-red-600 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </button>
             </div>
           </div>
         </div>
