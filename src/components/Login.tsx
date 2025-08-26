@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
-import { verifyPin } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 interface LoginProps {
   onLogin: (success: boolean) => void;
@@ -51,7 +51,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     setLoading(true);
     try {
-      const isValid = await verifyPin(pin);
+      const { data, error } = await supabase
+        .from('pin_settings')
+        .select('pin_code')
+        .single();
+      
+      if (error) throw error;
+      
+      const isValid = data?.pin_code === pin;
+      
       if (isValid) {
         // Clear attempts on successful login
         setAttempts({ count: 0, timestamp: 0 });

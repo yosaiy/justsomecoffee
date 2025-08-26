@@ -2,14 +2,41 @@ import { createClient } from '@supabase/supabase-js';
 // Temporarily commenting out database types import until it's available
 // import { Database } from './database.types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// PIN Authentication functions
+export const verifyPin = async (pin: string) => {
+  const { data, error } = await supabase
+    .from('pin_settings')
+    .select('pin_code')
+    .single();
+  
+  if (error) throw error;
+  return data?.pin_code === pin;
+};
+
+export const updatePin = async (currentPin: string, newPin: string) => {
+  // First verify current PIN
+  const isValid = await verifyPin(currentPin);
+  if (!isValid) {
+    throw new Error('Current PIN is incorrect');
+  }
+
+  // Update PIN
+  const { error } = await supabase
+    .from('pin_settings')
+    .update({ 
+      pin_code: newPin,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', 1);  // We only have one row
+
+  if (error) throw error;
+  return true;
+};
 
 // Real-time subscription channels
 export const subscribeToMenuItems = (callback: (payload: any) => void) => {
