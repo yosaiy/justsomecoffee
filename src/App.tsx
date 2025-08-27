@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Coffee, BarChart3, Menu, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook, LogOut } from 'lucide-react';
+import { Coffee, BarChart3, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook, LogOut, AlignJustify } from 'lucide-react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import MenuManagement from './components/MenuManagement';
@@ -19,6 +19,7 @@ function App() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [, setMaterials] = useState<Material[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Initialize data and real-time subscriptions
@@ -107,13 +108,13 @@ function App() {
   };
 
   const tabs = [
-    { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
-    { id: 'menu', name: 'Menu', icon: Menu },
-    { id: 'orders', name: 'Pesanan', icon: ShoppingCart },
-    { id: 'kds', name: 'Kitchen', icon: UtensilsCrossed },
-    { id: 'hpp', name: 'HPP', icon: DollarSign },
-    { id: 'logs', name: 'Riwayat', icon: History },
-    { id: 'webhook', name: 'Webhook', icon: Webhook }
+          { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
+      { id: 'menu', name: 'Menu', icon: Coffee },
+      { id: 'orders', name: 'Pesanan', icon: ShoppingCart },
+      { id: 'kds', name: 'Kitchen', icon: UtensilsCrossed },
+      { id: 'hpp', name: 'HPP', icon: DollarSign },
+      { id: 'logs', name: 'Riwayat', icon: History },
+      { id: 'webhook', name: 'Webhook', icon: Webhook }
   ];
 
   const handleLogout = () => {
@@ -139,8 +140,8 @@ function App() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-amber-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between h-auto sm:h-16 py-3 sm:py-0">
+            <div className="flex items-center space-x-3 mb-3 sm:mb-0">
               <div className="bg-amber-600 p-2 rounded-lg">
                 <Coffee className="h-6 w-6 text-white" />
               </div>
@@ -149,16 +150,16 @@ function App() {
                 <p className="text-sm text-gray-500">Sistem Manajemen Bisnis</p>
               </div>
             </div>
-            <div className="flex items-center space-x-6 text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-600">
               <div className="flex items-center space-x-1">
                 <TrendingUp className="h-4 w-4" />
-                <span>Hari Ini: {formatIDR(orders.reduce((sum, order) => 
+                <span className="whitespace-nowrap">Hari Ini: {formatIDR(orders.reduce((sum, order) => 
                   new Date(order.date).toDateString() === new Date().toDateString() ? sum + order.total : sum, 0
                 ))}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Users className="h-4 w-4" />
-                <span>{orders.filter(order => 
+                <span className="whitespace-nowrap">{orders.filter(order => 
                   new Date(order.date).toDateString() === new Date().toDateString()
                 ).length} Pesanan</span>
               </div>
@@ -177,7 +178,44 @@ function App() {
       {/* Navigation */}
       <nav className="bg-white border-b border-amber-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
+          {/* Mobile menu button */}
+          <div className="sm:hidden py-2 flex justify-end">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="text-gray-600 hover:text-amber-600 focus:outline-none"
+            >
+              <AlignJustify className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Mobile menu */}
+          <div className={`sm:hidden ${isMobileMenuOpen ? 'block' : 'hidden'}`}>
+            <div className="flex flex-col space-y-1 pb-3">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`flex items-center space-x-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === tab.id
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{tab.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desktop menu */}
+          <div className="hidden sm:flex space-x-8">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
