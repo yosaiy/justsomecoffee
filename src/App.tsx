@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Coffee, BarChart3, Menu as MenuIcon, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook, LogOut, AlignJustify } from 'lucide-react';
+import { Coffee, BarChart3, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook, LogOut, AlignJustify } from 'lucide-react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import MenuManagement from './components/MenuManagement';
