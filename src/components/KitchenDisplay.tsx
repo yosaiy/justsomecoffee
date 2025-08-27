@@ -144,8 +144,10 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ formatIDR }) => {
                 ))}
                 {order.additional && (
                   <div className="mt-2 pt-2 border-t border-gray-200">
-                    <span className="text-gray-500">Catatan:</span>
-                    <p className="text-gray-700 mt-1">{order.additional}</p>
+                    <div className="bg-amber-50 p-2 rounded-md border border-amber-100">
+                      <span className="text-amber-700 font-medium">Catatan:</span>
+                      <p className="text-gray-700 mt-1">{order.additional}</p>
+                    </div>
                   </div>
                 )}
               </div>
