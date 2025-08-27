@@ -142,6 +142,12 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ formatIDR }) => {
                     <span>x{item.quantity}</span>
                   </div>
                 ))}
+                {order.additional && (
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <span className="text-gray-500">Catatan:</span>
+                    <p className="text-gray-700 mt-1">{order.additional}</p>
+                  </div>
+                )}
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
