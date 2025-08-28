@@ -23,6 +23,7 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortStatus, setSortStatus] = useState<'completed' | 'pending' | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -187,7 +188,11 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     }
   };
 
-  const recentOrders = orders; // Show all orders
+  // Sort orders based on status
+  const sortedOrders = useMemo(() => {
+    if (!sortStatus) return orders;
+    return [...orders].filter(order => order.status === sortStatus);
+  }, [orders, sortStatus]);
 
   if (loading) {
     return (
@@ -395,16 +400,52 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
 
       {/* Recent Orders Section - Full Width */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-          <Clock className="h-5 w-5" />
-          <span>Semua Pesanan</span>
-        </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2 mb-4 sm:mb-0">
+            <Clock className="h-5 w-5" />
+            <span>Semua Pesanan</span>
+          </h3>
+          
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600 mr-2">Sort By:</span>
+            <button
+              onClick={() => setSortStatus('completed')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                sortStatus === 'completed'
+                  ? 'bg-green-600 text-white shadow-md scale-105'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Selesai
+            </button>
+            <button
+              onClick={() => setSortStatus('pending')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                sortStatus === 'pending'
+                  ? 'bg-amber-600 text-white shadow-md scale-105'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => setSortStatus(null)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                sortStatus === null
+                  ? 'bg-blue-600 text-white shadow-md scale-105'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
 
-        {recentOrders.length === 0 ? (
+        {sortedOrders.length === 0 ? (
           <p className="text-gray-500 text-center py-4">Belum ada pesanan</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recentOrders.map(order => (
+            {sortedOrders.map(order => (
               <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <div>
