@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Search, Calendar, User } from 'lucide-react';
 import { getOrders, subscribeToOrders } from '../lib/supabase';
 
@@ -82,25 +82,29 @@ const OrderLogs: React.FC<OrderLogsProps> = ({ formatIDR }) => {
     };
   }, []);
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = searchTerm === '' || 
-      (order.customer_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (order.phone?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-    
-    const matchesDate = selectedDate === '' || 
-      new Date(order.date).toISOString().split('T')[0] === selectedDate;
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order: Order) => {
+      const matchesSearch = searchTerm === '' || 
+        (order.customer_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (order.phone?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      
+      const matchesDate = selectedDate === '' || 
+        new Date(order.date).toISOString().split('T')[0] === selectedDate;
 
-    return matchesSearch && matchesDate;
-  });
+      return matchesSearch && matchesDate;
+    });
+  }, [orders, searchTerm, selectedDate]);
 
-  const groupedOrders = filteredOrders.reduce((acc, order) => {
-    const customerName = order.customer_name || 'Anonymous';
-    if (!acc[customerName]) {
-      acc[customerName] = [];
-    }
-    acc[customerName].push(order);
-    return acc;
-  }, {} as Record<string, Order[]>);
+  const groupedOrders = useMemo(() => {
+    return filteredOrders.reduce((acc: Record<string, Order[]>, order: Order) => {
+      const customerName = order.customer_name || 'Anonymous';
+      if (!acc[customerName]) {
+        acc[customerName] = [];
+      }
+      acc[customerName].push(order);
+      return acc;
+    }, {} as Record<string, Order[]>);
+  }, [filteredOrders]);
 
   if (loading) {
     return (
@@ -180,7 +184,7 @@ const OrderLogs: React.FC<OrderLogsProps> = ({ formatIDR }) => {
                     </span>
                   </div>
                   <div className="space-y-1">
-                    {order.items.map((item: any) => (
+                    {order.items.map((item: OrderItem) => (
                       <div key={item.id} className="flex justify-between text-sm">
                         <span className="text-gray-600">
                           {item.quantity}x {item.menu_item.name}
