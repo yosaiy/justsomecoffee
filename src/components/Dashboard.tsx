@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { TrendingUp, DollarSign, ShoppingCart, Users, Calendar } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingCart, Users, Calendar, Coffee } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { getOrders, supabase } from '../lib/supabase';
 
 // Helper function to calculate percentage change
@@ -78,11 +78,14 @@ const Dashboard: React.FC<DashboardProps> = ({ formatIDR }) => {
       ordersToday: 0,
       ordersWeek: 0,
       ordersMonth: 0,
+      itemsSoldToday: 0,
+      itemsSoldYesterday: 0,
       popularItems: [],
       totalProfit: 0,
       averageOrder: 0,
       revenueTrend: { value: 0, trend: 'neutral' as const },
       ordersTrend: { value: 0, trend: 'neutral' as const },
+      itemsSoldTrend: { value: 0, trend: 'neutral' as const },
       avgOrderTrend: { value: 0, trend: 'neutral' as const },
       profitTrend: { value: 0, trend: 'neutral' as const },
       graphData: [],
@@ -149,6 +152,19 @@ const Dashboard: React.FC<DashboardProps> = ({ formatIDR }) => {
       const orderDate = new Date(order.date);
       return orderDate >= startOfYesterday && orderDate < startOfDay;
     });
+
+    // Calculate total items sold today and yesterday
+    const itemsSoldToday = todayOrders.reduce((total, order) => {
+      return total + order.items.reduce((orderTotal: number, item: any) => {
+        return orderTotal + item.quantity;
+      }, 0);
+    }, 0);
+
+    const itemsSoldYesterday = yesterdayOrders.reduce((total, order) => {
+      return total + order.items.reduce((orderTotal: number, item: any) => {
+        return orderTotal + item.quantity;
+      }, 0);
+    }, 0);
     const weekOrders = orders.filter(order => {
       const orderDate = new Date(order.date);
       return orderDate >= new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -189,12 +205,15 @@ const Dashboard: React.FC<DashboardProps> = ({ formatIDR }) => {
       ordersToday: todayOrders.length,
       ordersWeek: weekOrders.length,
       ordersMonth: monthOrders.length,
+      itemsSoldToday,
+      itemsSoldYesterday,
       popularItems,
       totalProfit,
       averageOrder: todayOrders.length > 0 ? revenueToday / todayOrders.length : 0,
       // Add trend calculations
       revenueTrend: calculatePercentageChange(revenueToday, revenueYesterday),
       ordersTrend: calculatePercentageChange(todayOrders.length, yesterdayOrders.length),
+      itemsSoldTrend: calculatePercentageChange(itemsSoldToday, itemsSoldYesterday),
       avgOrderTrend: calculatePercentageChange(
         todayOrders.length > 0 ? revenueToday / todayOrders.length : 0,
         yesterdayOrders.length > 0 ? revenueYesterday / yesterdayOrders.length : 0
@@ -302,7 +321,7 @@ const Dashboard: React.FC<DashboardProps> = ({ formatIDR }) => {
       )}
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
         <StatCard
           title="Penjualan Hari Ini"
           value={formatIDR(dashboardData.revenueToday)}
@@ -316,6 +335,13 @@ const Dashboard: React.FC<DashboardProps> = ({ formatIDR }) => {
           icon={ShoppingCart}
           trend={dashboardData.ordersTrend}
           color="blue"
+        />
+        <StatCard
+          title="Kopi Terjual Hari Ini"
+          value={dashboardData.itemsSoldToday}
+          icon={Coffee}
+          trend={dashboardData.itemsSoldTrend}
+          color="amber"
         />
         <StatCard
           title="Rata-rata Pesanan"
