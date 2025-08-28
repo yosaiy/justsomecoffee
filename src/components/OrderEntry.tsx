@@ -187,7 +187,7 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     }
   };
 
-  const recentOrders = orders.slice(0, 10);
+  const recentOrders = orders; // Show all orders
 
   if (loading) {
     return (
@@ -397,7 +397,7 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
           <Clock className="h-5 w-5" />
-          <span>Pesanan Terbaru</span>
+          <span>Semua Pesanan</span>
         </h3>
 
         {recentOrders.length === 0 ? (
