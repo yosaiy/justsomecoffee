@@ -1,4 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+
+interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  status: string;
+  description?: string;
+}
+
+interface OrderItem {
+  id: string;
+  menu_item: MenuItem;
+  quantity: number;
+  price_at_time: number;
+}
+
+interface Order {
+  id: string;
+  customer_name: string | null;
+  phone: string | null;
+  total: number;
+  status: 'pending' | 'completed' | 'cancelled';
+  additional: string | null;
+  date: string;
+  items: OrderItem[];
+}
 import { Plus, Minus, ShoppingCart, Clock, Calendar } from 'lucide-react';
 import { createOrder, getMenuItems, getOrders, updateOrderStatus, subscribeToOrders, subscribeToMenuItems, supabase } from '../lib/supabase';
 import DatePicker from 'react-datepicker';
@@ -8,20 +35,17 @@ interface OrderEntryProps {
   formatIDR: (amount: number) => string;
 }
 
-interface OrderItem {
-  menu_item: any;
-  quantity: number;
-}
+
 
 const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
-  const [currentOrder, setCurrentOrder] = useState<OrderItem[]>([]);
+  const [currentOrder, setCurrentOrder] = useState<Array<OrderItem>>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [additional, setAdditional] = useState('');
   const [orderDate, setOrderDate] = useState<Date>(new Date());
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [menuItems, setMenuItems] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortStatus, setSortStatus] = useState<'completed' | 'pending' | null>(null);
 
@@ -34,7 +58,7 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
         ]);
         console.log('Orders data:', ordersData);
         setMenuItems(menuData || []);
-        setOrders(ordersData || []);
+        setOrders((ordersData || []) as Order[]);
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -65,18 +89,19 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
       console.log('Subscription payload:', payload);
       // Handle immediate updates based on the change type
       if (payload.eventType === 'INSERT') {
-        setOrders(prev => [payload.new, ...prev]); // Add new orders at the beginning
+        setOrders(prev => [payload.new as Order, ...prev]); // Add new orders at the beginning
       } else if (payload.eventType === 'DELETE') {
         setOrders(prev => prev.filter(order => order.id !== payload.old.id));
       } else if (payload.eventType === 'UPDATE') {
+        const updatedOrder = payload.new as Order;
         setOrders(prev => prev.map(order => 
-          order.id === payload.new.id ? payload.new : order
+          order.id === updatedOrder.id ? updatedOrder : order
         ));
       }
       // Also fetch fresh data to ensure consistency
       const data = await getOrders();
       console.log('Fresh orders data:', data);
-      setOrders(data || []);
+      setOrders((data || []) as Order[]);
     });
 
     return () => {
@@ -91,7 +116,7 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     ? activeMenuItems.filter(item => item.category === selectedCategory)
     : activeMenuItems;
 
-  const addToOrder = (menuItem: any) => {
+  const addToOrder = (menuItem: MenuItem) => {
     setCurrentOrder((prev) => {
       const existingItem = prev.find(item => item.menu_item.id === menuItem.id);
       if (existingItem) {
@@ -101,7 +126,13 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
             : item
         );
       } else {
-        return [...prev, { menu_item: menuItem, quantity: 1 }];
+        const newItem: OrderItem = {
+          id: `temp_${Date.now()}`, // Temporary ID until saved
+          menu_item: menuItem,
+          quantity: 1,
+          price_at_time: menuItem.price
+        };
+        return [...prev, newItem];
       }
     });
   };
@@ -445,7 +476,7 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
           <p className="text-gray-500 text-center py-4">Belum ada pesanan</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedOrders.map(order => (
+            {sortedOrders.map((order: Order) => (
               <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -467,7 +498,7 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
                 </div>
 
                 <div className="space-y-2 text-sm text-gray-600 mb-3">
-                  {order.items.map((item: any) => (
+                  {order.items.map((item: OrderItem) => (
                     <div key={item.id} className="flex justify-between">
                       <span>{item.menu_item.name} x{item.quantity}</span>
                       <span>{formatIDR(item.price_at_time * item.quantity)}</span>
