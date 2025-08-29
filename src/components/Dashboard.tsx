@@ -242,22 +242,26 @@ const Dashboard: React.FC<DashboardProps> = ({ formatIDR }) => {
   }
 
   const StatCard = ({ title, value, icon: Icon, trend, color = 'amber' }: StatCardProps) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 hover:shadow-md transition-shadow">
+      <div className="flex flex-col space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`bg-${color}-100 p-2 sm:p-3 rounded-lg flex-shrink-0`}>
+              <Icon className={`h-5 w-5 sm:h-6 sm:w-6 text-${color}-600`} />
+            </div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+          </div>
+        </div>
         <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{value}</p>
           {trend && trend.trend !== 'neutral' && (
-            <div className={`flex items-center mt-2 text-sm ${
+            <div className={`flex items-center mt-2 text-xs sm:text-sm ${
               trend.trend === 'up' ? 'text-green-600' : 'text-red-600'
             }`}>
               <TrendingUp className={`h-3 w-3 mr-1 ${trend.trend === 'down' ? 'rotate-180' : ''}`} />
               <span>{trend.value.toFixed(1)}%</span>
             </div>
           )}
-        </div>
-        <div className={`bg-${color}-100 p-3 rounded-lg`}>
-          <Icon className={`h-6 w-6 text-${color}-600`} />
         </div>
       </div>
     </div>
@@ -321,7 +325,7 @@ const Dashboard: React.FC<DashboardProps> = ({ formatIDR }) => {
       )}
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
           title="Penjualan Hari Ini"
           value={formatIDR(dashboardData.revenueToday)}
