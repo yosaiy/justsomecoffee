@@ -48,6 +48,8 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortStatus, setSortStatus] = useState<'completed' | 'pending' | null>(null);
+  const [filterDate, setFilterDate] = useState<Date | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -219,11 +221,36 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     }
   };
 
-  // Sort orders based on status
-  const sortedOrders = useMemo(() => {
-    if (!sortStatus) return orders;
-    return [...orders].filter(order => order.status === sortStatus);
-  }, [orders, sortStatus]);
+  // Filter and sort orders
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      // Status filter
+      if (sortStatus && order.status !== sortStatus) return false;
+      
+      // Date filter
+      if (filterDate) {
+        const orderDate = new Date(order.date);
+        const filterDateStart = new Date(filterDate);
+        filterDateStart.setHours(0, 0, 0, 0);
+        const filterDateEnd = new Date(filterDate);
+        filterDateEnd.setHours(23, 59, 59, 999);
+        
+        if (orderDate < filterDateStart || orderDate > filterDateEnd) return false;
+      }
+      
+      // Search query filter
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesName = order.customer_name?.toLowerCase().includes(searchLower);
+        const matchesPhone = order.phone?.toLowerCase().includes(searchLower);
+        const matchesNote = order.additional?.toLowerCase().includes(searchLower);
+        
+        if (!matchesName && !matchesPhone && !matchesNote) return false;
+      }
+      
+      return true;
+    });
+  }, [orders, sortStatus, filterDate, searchQuery]);
 
   if (loading) {
     return (
@@ -437,46 +464,81 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
             <span>Semua Pesanan</span>
           </h3>
           
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600 mr-2">Sort By:</span>
-            <button
-              onClick={() => setSortStatus('completed')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                sortStatus === 'completed'
-                  ? 'bg-green-600 text-white shadow-md scale-105'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Selesai
-            </button>
-            <button
-              onClick={() => setSortStatus('pending')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                sortStatus === 'pending'
-                  ? 'bg-amber-600 text-white shadow-md scale-105'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Pending
-            </button>
-            <button
-              onClick={() => setSortStatus(null)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                sortStatus === null
-                  ? 'bg-blue-600 text-white shadow-md scale-105'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Clear
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama pelanggan, telepon, atau catatan..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Date Filter */}
+            <div className="relative">
+              <DatePicker
+                selected={filterDate}
+                onChange={(date: Date | null) => setFilterDate(date)}
+                dateFormat="dd/MM/yyyy"
+                isClearable
+                placeholderText="Filter by date"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            </div>
+
+            {/* Status Filter */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setSortStatus('completed')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  sortStatus === 'completed'
+                    ? 'bg-green-600 text-white shadow-md scale-105'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Selesai
+              </button>
+              <button
+                onClick={() => setSortStatus('pending')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  sortStatus === 'pending'
+                    ? 'bg-amber-600 text-white shadow-md scale-105'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => {
+                  setSortStatus(null);
+                  setFilterDate(null);
+                  setSearchQuery('');
+                }}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  !sortStatus && !filterDate && !searchQuery
+                    ? 'bg-blue-600 text-white shadow-md scale-105'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Reset All
+              </button>
+            </div>
           </div>
         </div>
 
-        {sortedOrders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <p className="text-gray-500 text-center py-4">Belum ada pesanan</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedOrders.map((order: Order) => (
+            {filteredOrders.map((order: Order) => (
               <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <div>
