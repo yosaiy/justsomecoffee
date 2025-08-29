@@ -118,6 +118,7 @@ export const getOrders = async () => {
       phone,
       total,
       status,
+      payment,
       additional,
       date,
       created_at,

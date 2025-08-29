@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Coffee, BarChart3, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook, LogOut, AlignJustify } from 'lucide-react';
+import { Coffee, BarChart3, ShoppingCart, DollarSign, TrendingUp, Users, UtensilsCrossed, History, Webhook, LogOut, AlignJustify, FileText } from 'lucide-react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import MenuManagement from './components/MenuManagement';
@@ -8,6 +8,7 @@ import HPPCalculator from './components/HPPCalculator';
 import KitchenDisplay from './components/KitchenDisplay';
 import OrderLogs from './components/OrderLogs';
 import WebhookSettings from './components/WebhookSettings';
+import ReportPage from './components/ReportPage';
 import { MenuItem, Order, Material } from './types';
 import { getMenuItems, getMaterials, getOrders, subscribeToMenuItems, subscribeToOrders, subscribeToMaterials } from './lib/supabase';
 
@@ -114,6 +115,7 @@ function App() {
       { id: 'kds', name: 'Kitchen', icon: UtensilsCrossed },
       { id: 'hpp', name: 'HPP', icon: DollarSign },
       { id: 'logs', name: 'Riwayat', icon: History },
+      { id: 'report', name: 'Laporan', icon: FileText },
       { id: 'webhook', name: 'Webhook', icon: Webhook }
   ];
 
@@ -256,6 +258,9 @@ function App() {
         )}
         {activeTab === 'logs' && (
           <OrderLogs formatIDR={formatIDR} />
+        )}
+        {activeTab === 'report' && (
+          <ReportPage formatIDR={formatIDR} />
         )}
         {activeTab === 'webhook' && (
           <WebhookSettings />
