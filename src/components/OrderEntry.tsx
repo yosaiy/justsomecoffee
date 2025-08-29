@@ -22,6 +22,7 @@ interface Order {
   phone: string | null;
   total: number;
   status: 'pending' | 'completed' | 'cancelled';
+  payment?: 'qris' | 'cash' | 'transfer' | null;
   additional: string | null;
   date: string;
   items: OrderItem[];
@@ -50,6 +51,8 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
   const [sortStatus, setSortStatus] = useState<'completed' | 'pending' | null>(null);
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -187,13 +190,30 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     }
   };
 
-  const completeOrder = async (orderId: string) => {
+  const completeOrder = async (orderId: string, paymentMethod: 'qris' | 'cash' | 'transfer') => {
     try {
-      await updateOrderStatus(orderId, 'completed');
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'completed',
+          payment: paymentMethod
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+      setShowPaymentModal(false);
+      setSelectedOrderId(null);
     } catch (error) {
       console.error('Failed to complete order:', error);
       alert('Failed to complete order. Please try again.');
     }
+  };
+
+  const handleCompleteClick = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setShowPaymentModal(true);
   };
 
   const cancelOrder = async (orderId: string) => {
@@ -262,6 +282,48 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
 
   return (
     <div className="space-y-6">
+      {/* Payment Method Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 transform transition-all">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Metode Pembayaran
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                onClick={() => completeOrder(selectedOrderId!, 'qris')}
+                className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-2xl mb-2">📱</span>
+                <span className="text-sm font-medium">QRIS</span>
+              </button>
+              <button
+                onClick={() => completeOrder(selectedOrderId!, 'cash')}
+                className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-2xl mb-2">💵</span>
+                <span className="text-sm font-medium">Cash</span>
+              </button>
+              <button
+                onClick={() => completeOrder(selectedOrderId!, 'transfer')}
+                className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-2xl mb-2">🏦</span>
+                <span className="text-sm font-medium">Transfer</span>
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                setShowPaymentModal(false);
+                setSelectedOrderId(null);
+              }}
+              className="w-full mt-4 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Entry Pesanan</h1>
@@ -580,16 +642,29 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
                       <span>{order.phone}</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center pt-2 text-sm">
-                    <span className="font-semibold text-gray-900">
-                      Total: {formatIDR(order.total)}
-                    </span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-semibold text-gray-900">
+                        Total: {formatIDR(order.total)}
+                      </span>
+                    </div>
+                    {order.status === 'completed' && order.payment && (
+                      <div className="flex items-center text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                        <span className="mr-2">Payment:</span>
+                        <span className="flex items-center font-medium">
+                          {order.payment === 'qris' && '📱 '}
+                          {order.payment === 'cash' && '💵 '}
+                          {order.payment === 'transfer' && '🏦 '}
+                          {order.payment.charAt(0).toUpperCase() + order.payment.slice(1)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex space-x-2 pt-2">
                     {order.status === 'pending' && (
                       <>
                         <button
-                          onClick={() => completeOrder(order.id)}
+                          onClick={() => handleCompleteClick(order.id)}
                           className="flex-1 px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 transition-colors"
                         >
                           Selesai
