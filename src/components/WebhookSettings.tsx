@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Webhook, Save, TestTube } from 'lucide-react';
+import { Save, TestTube } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface WebhookSettingsProps {}

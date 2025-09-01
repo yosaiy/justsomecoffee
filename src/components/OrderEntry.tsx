@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 
 interface MenuItem {
   id: string;
@@ -28,7 +28,7 @@ interface Order {
   items: OrderItem[];
 }
 import { Plus, Minus, ShoppingCart, Clock, Calendar } from 'lucide-react';
-import { createOrder, getMenuItems, getOrders, updateOrderStatus, subscribeToOrders, subscribeToMenuItems, supabase } from '../lib/supabase';
+import { getMenuItems, getOrders, updateOrderStatus, subscribeToOrders, subscribeToMenuItems, supabase } from '../lib/supabase';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -53,6 +53,27 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
+  const [customerSuggestions, setCustomerSuggestions] = useState<Array<{ name: string; phone: string | null }>>([]);
+  const customerInputRef = useRef<HTMLDivElement>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [newOrderDetails, setNewOrderDetails] = useState<Order | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+
+  useEffect(() => {
+    // Add click outside listener for customer suggestions
+    const handleClickOutside = (event: MouseEvent) => {
+      if (customerInputRef.current && !customerInputRef.current.contains(event.target as Node)) {
+        setShowCustomerSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -115,6 +136,37 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     };
   }, []);
 
+  // Get unique customers from orders
+  const updateCustomerSuggestions = (searchText: string) => {
+    if (!searchText.trim()) {
+      setCustomerSuggestions([]);
+      return;
+    }
+
+    const searchLower = searchText.toLowerCase();
+    const uniqueCustomers = new Map<string, { name: string; phone: string | null }>();
+
+    orders.forEach(order => {
+      if (order.customer_name && 
+          order.customer_name.toLowerCase().includes(searchLower) && 
+          !uniqueCustomers.has(order.customer_name)) {
+        uniqueCustomers.set(order.customer_name, {
+          name: order.customer_name,
+          phone: order.phone
+        });
+      }
+    });
+
+    setCustomerSuggestions(Array.from(uniqueCustomers.values()));
+    setShowCustomerSuggestions(true);
+  };
+
+  const handleCustomerSelect = (customer: { name: string; phone: string | null }) => {
+    setCustomerName(customer.name);
+    if (customer.phone) setCustomerPhone(customer.phone);
+    setShowCustomerSuggestions(false);
+  };
+
   const categories = [...new Set(menuItems.map(item => item.category))];
   const activeMenuItems = menuItems.filter(item => item.status === 'active');
   const filteredMenuItems = selectedCategory 
@@ -167,23 +219,75 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     }
 
     try {
-      await createOrder({
-        customer_name: customerName || undefined,
-        phone: customerPhone || null,
-        additional: additional || null,
-        date: orderDate.toISOString(),
-        items: currentOrder.map(item => ({
-          menu_item_id: item.menu_item.id,
-          quantity: item.quantity,
-          price_at_time: item.menu_item.price
-        }))
-      });
+      // First, create the order
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_name: customerName || undefined,
+          phone: customerPhone || null,
+          additional: additional || null,
+          date: orderDate.toISOString(),
+          status: 'pending',
+          total: getTotalAmount()
+        })
+        .select()
+        .single();
 
+      if (orderError) throw orderError;
+      if (!newOrder) throw new Error('Failed to create order');
+
+      // Then, create the order items
+      const orderItems = currentOrder.map(item => ({
+        order_id: newOrder.id,
+        menu_item_id: item.menu_item.id,
+        quantity: item.quantity,
+        price_at_time: item.menu_item.price
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Finally, fetch the complete order with its items
+      const { data: completeOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            *,
+            menu_items (*)
+          )
+        `)
+        .eq('id', newOrder.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update local state with the new order
+      if (completeOrder) {
+        // Transform order_items to match the Order interface
+        const transformedOrder: Order = {
+          ...completeOrder,
+          items: completeOrder.order_items.map((item: { id: string; menu_items: MenuItem; quantity: number; price_at_time: number }) => ({
+            id: item.id,
+            menu_item: item.menu_items,
+            quantity: item.quantity,
+            price_at_time: item.price_at_time
+          }))
+        };
+        
+        setOrders(prev => [transformedOrder, ...prev]);
+        setNewOrderDetails(transformedOrder);
+        setShowSuccessModal(true);
+      }
+
+      // Reset form
       setCurrentOrder([]);
       setCustomerName('');
       setCustomerPhone('');
       setAdditional('');
-      alert('Pesanan berhasil dibuat!');
     } catch (error) {
       console.error('Failed to create order:', error);
       alert('Failed to create order. Please try again.');
@@ -216,25 +320,27 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
     setShowPaymentModal(true);
   };
 
-  const cancelOrder = async (orderId: string) => {
-    if (!confirm('Apakah Anda yakin ingin membatalkan pesanan ini?')) return;
-    try {
-      await updateOrderStatus(orderId, 'cancelled');
-    } catch (error) {
-      console.error('Failed to cancel order:', error);
-      alert('Failed to cancel order. Please try again.');
-    }
+
+  const handleDeleteClick = (order: Order) => {
+    setOrderToDelete(order);
+    setShowDeleteModal(true);
   };
 
-  const deleteOrder = async (orderId: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus pesanan ini? Tindakan ini tidak dapat dibatalkan.')) return;
+  const deleteOrder = async () => {
+    if (!orderToDelete) return;
+    
     try {
       const { error } = await supabase
         .from('orders')
         .delete()
-        .eq('id', orderId);
+        .eq('id', orderToDelete.id);
 
       if (error) throw error;
+
+      // Update local state
+      setOrders(prev => prev.filter(order => order.id !== orderToDelete.id));
+      setShowDeleteModal(false);
+      setOrderToDelete(null);
     } catch (error) {
       console.error('Failed to delete order:', error);
       alert('Failed to delete order. Please try again.');
@@ -282,6 +388,94 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
 
   return (
     <div className="space-y-6">
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && orderToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all">
+            <div className="text-center mb-4">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Konfirmasi Hapus Pesanan
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Apakah Anda yakin ingin menghapus pesanan ini? Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="text-sm text-gray-600 space-y-2">
+                <p><span className="font-medium">Pelanggan:</span> {orderToDelete.customer_name || 'Pelanggan'}</p>
+                <p><span className="font-medium">Total:</span> {formatIDR(orderToDelete.total)}</p>
+                <p><span className="font-medium">Status:</span> {orderToDelete.status}</p>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={deleteOrder}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Hapus Pesanan
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setOrderToDelete(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && newOrderDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all">
+            <div className="text-center mb-4">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Pesanan Berhasil Dibuat!
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Pesanan telah berhasil dibuat dan akan segera diproses.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="text-sm text-gray-600 space-y-2">
+                <p><span className="font-medium">Pelanggan:</span> {newOrderDetails.customer_name || 'Pelanggan'}</p>
+                {newOrderDetails.phone && (
+                  <p><span className="font-medium">Telepon:</span> {newOrderDetails.phone}</p>
+                )}
+                <p><span className="font-medium">Total:</span> {formatIDR(newOrderDetails.total)}</p>
+                {newOrderDetails.additional && (
+                  <p><span className="font-medium">Catatan:</span> {newOrderDetails.additional}</p>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Payment Method Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
@@ -406,13 +600,37 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nama Pelanggan
               </label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Masukkan nama pelanggan"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-              />
+              <div className="relative" ref={customerInputRef}>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => {
+                    setCustomerName(e.target.value);
+                    updateCustomerSuggestions(e.target.value);
+                  }}
+                  onFocus={() => {
+                    if (customerName) updateCustomerSuggestions(customerName);
+                  }}
+                  placeholder="Masukkan nama pelanggan"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
+                {showCustomerSuggestions && customerSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {customerSuggestions.map((customer, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleCustomerSelect(customer)}
+                        className="w-full px-4 py-2 text-left hover:bg-amber-50 focus:bg-amber-50 focus:outline-none"
+                      >
+                        <div className="font-medium text-gray-900">{customer.name}</div>
+                        {customer.phone && (
+                          <div className="text-sm text-gray-500">{customer.phone}</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -662,24 +880,16 @@ const OrderEntry: React.FC<OrderEntryProps> = ({ formatIDR }) => {
                   </div>
                   <div className="flex space-x-2 pt-2">
                     {order.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleCompleteClick(order.id)}
-                          className="flex-1 px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 transition-colors"
-                        >
-                          Selesai
-                        </button>
-                        <button
-                          onClick={() => cancelOrder(order.id)}
-                          className="flex-1 px-3 py-1.5 bg-red-100 text-red-700 rounded text-sm font-medium hover:bg-red-200 transition-colors"
-                        >
-                          Batal
-                        </button>
-                      </>
+                      <button
+                        onClick={() => handleCompleteClick(order.id)}
+                        className="flex-1 px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 transition-colors"
+                      >
+                        Selesai
+                      </button>
                     )}
                     <button
-                      onClick={() => deleteOrder(order.id)}
-                      className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200 transition-colors"
+                      onClick={() => handleDeleteClick(order)}
+                      className="flex-1 px-3 py-1.5 bg-red-100 text-red-700 rounded text-sm font-medium hover:bg-red-200 transition-colors"
                     >
                       Hapus
                     </button>

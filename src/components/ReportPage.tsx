@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Calendar, DollarSign, TrendingUp, TrendingDown, Download, Filter } from 'lucide-react';
+import { Calendar, DollarSign, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import { getOrders } from '../lib/supabase';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";

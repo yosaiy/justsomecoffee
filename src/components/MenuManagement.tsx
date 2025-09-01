@@ -489,7 +489,10 @@ const MenuManagement: React.FC<MenuManagementProps> = ({ formatIDR }) => {
         name: `${item.name} (Duplikat)`,
         ingredients: ingredients.map((ing: any) => ({ ...ing }))
       };
-      await createMenuItem(newItem);
+      const { error } = await supabase
+        .from('menu_items')
+        .insert(newItem);
+      if (error) throw error;
     } catch (error) {
       console.error('Failed to duplicate menu item:', error);
       alert('Failed to duplicate menu item. Please try again.');
