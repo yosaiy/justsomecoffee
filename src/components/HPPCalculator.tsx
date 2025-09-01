@@ -515,8 +515,8 @@ const HPPCalculator: React.FC<HPPCalculatorProps> = ({ menuItems, setMenuItems, 
       {/* Margin Analysis */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 text-green-700">
-            {'Item dengan Margin Tinggi (>50%)'}
+          <h3 className="text-lg font-semibold text-green-700 mb-4">
+            Item dengan Margin Tinggi ({'>'}50%)
           </h3>
           {analytics.highMarginItems.length === 0 ? (
             <p className="text-gray-500">Tidak ada item dengan margin tinggi</p>
@@ -536,7 +536,7 @@ const HPPCalculator: React.FC<HPPCalculatorProps> = ({ menuItems, setMenuItems, 
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 text-red-700">
+          <h3 className="text-lg font-semibold text-red-700 mb-4">
             Item dengan Margin Rendah ({'<30%'})
           </h3>
           {analytics.lowMarginItems.length === 0 ? (
